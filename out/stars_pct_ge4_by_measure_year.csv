@@ -1,0 +1,41 @@
+year,measure,pct_ge4
+2016.0,Breast Cancer Screening,0.36
+2016.0,Controlling Blood Pressure,0.332
+2016.0,Medication Reconciliation,0.04
+2016.0,Plan All-Cause Readmissions,0.436
+2017.0,Breast Cancer Screening,0.404
+2017.0,Controlling Blood Pressure,0.356
+2017.0,Medication Reconciliation,0.084
+2017.0,Plan All-Cause Readmissions,0.464
+2018.0,Breast Cancer Screening,0.532
+2018.0,Controlling Blood Pressure,0.444
+2018.0,Medication Reconciliation,0.168
+2018.0,Plan All-Cause Readmissions,0.552
+2019.0,Breast Cancer Screening,0.572
+2019.0,Controlling Blood Pressure,0.388
+2019.0,Medication Reconciliation,0.0
+2019.0,Plan All-Cause Readmissions,0.588
+2020.0,Breast Cancer Screening,0.568
+2020.0,Controlling Blood Pressure,0.432
+2020.0,Medication Reconciliation,0.0
+2020.0,Plan All-Cause Readmissions,0.496
+2021.0,Breast Cancer Screening,0.496
+2021.0,Controlling Blood Pressure,0.0
+2021.0,Medication Reconciliation,0.0
+2021.0,Plan All-Cause Readmissions,0.644
+2022.0,Breast Cancer Screening,0.452
+2022.0,Controlling Blood Pressure,0.0
+2022.0,Medication Reconciliation,0.0
+2022.0,Plan All-Cause Readmissions,0.656
+2023.0,Breast Cancer Screening,0.64
+2023.0,Controlling Blood Pressure,0.868
+2023.0,Medication Reconciliation,0.068
+2023.0,Plan All-Cause Readmissions,0.36
+2024.0,Breast Cancer Screening,0.616
+2024.0,Controlling Blood Pressure,0.74
+2024.0,Medication Reconciliation,0.0
+2024.0,Plan All-Cause Readmissions,0.256
+2025.0,Breast Cancer Screening,0.696
+2025.0,Controlling Blood Pressure,0.868
+2025.0,Medication Reconciliation,0.124
+2025.0,Plan All-Cause Readmissions,0.372
