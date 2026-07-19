@@ -280,13 +280,14 @@ def kolakoski_nilsson() -> Iterator[int]:
     1, 2, 1, ... (run j is 1s for odd j, and run 3 is where we resume).
 
     Memory: each level is one small generator frame. A level consumes one
-    parent symbol per run it emits, i.e. advances at a rate provably in
-    [3/5, 3/4] symbols-per-symbol (the run-count window ⌈(3L−2)/5⌉ ≤
-    #runs(L) ≤ ⌈3L/4⌉ — see the test suite; conjecturally the rate is
-    ~2/3). So after n terms only Θ(log n) levels exist — measured: 39
-    levels after 10⁷ terms, ~15 KB of generator frames vs ~17 MB for the
-    stored tape. Total work remains O(n): the per-level costs form a
-    geometric series. This is the construction behind Nilsson's
+    parent symbol per run it emits, i.e. advances — eventually — at a rate
+    in [3/5, 3/4] symbols-per-symbol (at L = 1 the ratio is 1; the exact
+    finite-L statement is the run-count window ⌈(3L−2)/5⌉ ≤ #runs(L) ≤
+    ⌈3L/4⌉, asserted in the test suite; conjecturally the rate is ~2/3).
+    So after n terms only Θ(log n) levels exist — measured: 39 levels
+    after 10⁷ terms, ~16 KB of generator frames, vs ~17 MB (at 10⁶) and
+    ~10⁸ bytes (at 10⁷) for the tape-retaining methods. Total work
+    remains O(n): the per-level costs form a geometric series. This is the construction behind Nilsson's
     space-efficient computation of the digit distribution (J. Integer
     Sequences 15 (2012), article 12.6.7 — "logarithmic space and still
     runs in linear time").
@@ -328,6 +329,9 @@ def stream_stats(it: Iterator[int], n: int) -> tuple[int, int, int]:
     C1 (density at 10⁸ without 10⁸ memory). Contract: exactly n items are
     consumed from `it` — no lookahead — so the caller may keep using the
     iterator afterwards. For n = 0 the walk never moves: (0, 0, 0).
+    Caveat: the contract presumes `it` can supply n items; a shorter
+    iterator is consumed to exhaustion and the stats cover only what came
+    out (islice semantics — no error is raised).
 
     Time O(n), memory O(1).
     """

@@ -217,6 +217,9 @@ def fig2(path: Path) -> None:
     ax.set_xlabel("n  (log scale)")
     ax.set_ylabel("share of 1s among the first n terms")
     ax.set_title("The density of 1s hugs 1/2 — whether it converges is an open problem")
+    ax.text(0.01, 0.02, "y-axis clipped to [0.47, 0.53] and x starts at n = 10 — "
+            "the earliest densities exit the frame (density(3) = 1/3)",
+            transform=ax.transAxes, color=MUTED, fontsize=7.5)
 
     # Inset: the decade (10^6, 10^7] against Nilsson's corridor. Chvátal's
     # lines stay out (off this scale by ~12x). The measured max deviation in

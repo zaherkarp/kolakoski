@@ -33,6 +33,7 @@ import kolakoski
 from kolakoski import (
     METHODS,
     STREAM_METHODS,
+    _demo,
     kolakoski_expand,
     kolakoski_pointer,
     rld,
@@ -175,8 +176,32 @@ def test_prefix_sum_window():
 
 def test_alphabet_and_no_triples():
     assert set(K_1M_POINTER) == {1, 2}
-    # No run exceeds length 2 — equivalently, no x,x,x window anywhere.
+    # No x,x,x window anywhere — checked DIRECTLY on the raw symbols, not
+    # through rle (round-3 review: routing this through rle lets an
+    # identity-rle mutant pass it vacuously; a byte scan has no such hole).
+    raw = bytes(K_1M_POINTER)
+    assert raw.find(b"\x01\x01\x01") == -1
+    assert raw.find(b"\x02\x02\x02") == -1
+    # The rle formulation is kept as a second, non-independent phrasing.
     assert max(rle(K_1M_POINTER)) <= 2
+
+
+def test_pointer_loop_invariant():
+    # The invariant kolakoski.py states at its loop head, checked at every
+    # loop entry by replaying the same algorithm transparently. The replay
+    # is tied to the shipped function by output equality at the end, so
+    # this genuinely certifies the shipped algorithm's invariant (added in
+    # round 3: both reviewers found the docstring promised this test
+    # before it existed).
+    n = 2_000
+    seq = [1, 2, 2]
+    i, symbol = 2, 1
+    while len(seq) < n:
+        assert rld(seq[:i], 1) == seq, f"invariant broken at i={i}"
+        seq.extend([symbol] * seq[i])
+        symbol = 3 - symbol
+        i += 1
+    assert seq[:n] == kolakoski_pointer(n)  # the replay IS the algorithm
 
 
 def test_density_sanity():
@@ -207,6 +232,15 @@ def test_stream_stats_contract():
     assert (min_d, max_d) == (min(walk), max(walk))
 
     assert stream_stats(iter([]), 0) == (0, 0, 0)
+
+
+def test_demo_output():
+    # The CLI demo returns a string precisely so it can be tested; test it
+    # (round-3 review caught the claim without the test). The demo must
+    # show the terms, and its live self-check must report success.
+    text = _demo(30)
+    assert text.startswith("1 2 2 1 1 2 1 2 2 1")
+    assert "yes" in text and "NO — BUG" not in text
 
 
 def test_docstring_examples():

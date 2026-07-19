@@ -169,10 +169,13 @@ And what our own code sees (**verified**, all re-runnable):
 - d(10⁶) = **0.499986** but d(10⁷) = **0.5000046** — the deviation *changes
   sign*. Convergence, if it is happening, is not monotone.
 - The largest deviation \|d(n) − 1/2\| for n in (10⁶, 10⁷] is
-  **3.892106×10⁻⁵ at n = 1,798,512** — which matches, to the printed digit,
-  the decade entry 3.892×10⁻⁵ in Nilsson's own Table I. Two independent
-  programs, twelve years apart, agreeing to seven digits: that is what
-  *verified* buys you, and still proves nothing about the limit.
+  **3.892106×10⁻⁵ at n = 1,798,512** (exactly 70/1,798,512) — matching the
+  decade entry 3.892×10⁻⁵ in Nilsson's own Table I to every digit the paper
+  prints. Two independent programs, twelve years apart, in exact agreement:
+  that is what *verified* buys you, and it still proves nothing about the
+  limit. (In fig2, note the y-axis is clipped to [0.47, 0.53] — the very
+  earliest densities, like d(3) = 1/3, exit the frame; the figure says so
+  on-ink.)
 
 ![Running density against the rigorous bounds](../figures/fig2_density.png)
 
@@ -236,8 +239,9 @@ stored tape with a second, lazier instance of the same generator, which
 consults a third, and so on. Each level hardcodes its first two runs (symbols
 1,2,2), then reads further run lengths from its parent, discarding the
 parent's first two symbols (already spent). A level advances its parent one
-symbol per run it emits — a rate provably in [3/5, 3/4] by §4's run-count
-window — so after n terms only Θ(log n) levels exist. **Verified:** 39 levels
+symbol per run it emits — a rate eventually in [3/5, 3/4] (the exact
+finite-L statement is §4's run-count window; at L = 1 the ratio is 1) — so
+after n terms only Θ(log n) levels exist. **Verified:** 39 levels
 after 10⁷ terms, and the whole chain fits in ~16 KB while the tape-based
 methods hold ~10⁸ bytes. This is the construction behind Nilsson's 2012
 algorithm ("logarithmic space and still runs in linear time," *J. Integer
@@ -263,8 +267,9 @@ path nearly retraces itself for a while, then escapes.
 
 ![The raster](../figures/fig5_raster.png)
 
-**fig5 — aperiodicity you can squint at.** The same prefix wrapped at widths
-90 and 89. If K were eventually periodic with period p, any wrap width that is
+**fig5 — aperiodicity you can squint at.** Nearly the same prefix — 8,100
+terms in the left panel, 8,010 in the right, so each panel fills its
+rectangle exactly — wrapped at widths 90 and 89. If K were eventually periodic with period p, any wrap width that is
 a multiple of p would eventually organize into vertical stripes — and near
 misses would show diagonal banding. Neither width (nor any other you will try;
 Exercise C3) produces alignment. This is *evidence*, and §4's theorem is the
