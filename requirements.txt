@@ -1,0 +1,8 @@
+# The mathematics needs nothing beyond the Python standard library:
+# kolakoski.py (the core module) and its tests are deliberately stdlib-only.
+# These packages are used ONLY by viz.py to render the figures.
+numpy>=1.26
+matplotlib>=3.8
+
+# Test runner (the tests themselves import only kolakoski + stdlib).
+pytest>=8
