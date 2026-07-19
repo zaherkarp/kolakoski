@@ -15,8 +15,11 @@ test:       ## run the test suite (stdlib + pytest; ~seconds)
 figures:    ## render all six figures into figures/
 	python3 viz.py
 
-# Full gate: run tests, then render figures TWICE and require byte-identical
-# output for figs 1-5 (fig6 is timing-based, exempt), plus a <=400 KB size
-# budget per PNG. This is what CI would run if this repo had CI.
+# Full gate: run tests, then re-render figs 1-5 and require them to be
+# BYTE-IDENTICAL to the committed PNGs — proving both determinism and that
+# the committed figures match the current viz.py (git does not preserve
+# mtimes, so timestamps can't do this; review round 2 caught that). fig6 is
+# timing-based and only size-checked. Budget: <=400 KB per PNG.
+# This is what CI would run if this repo had CI.
 verify: test
 	python3 viz.py --verify
