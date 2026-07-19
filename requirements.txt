@@ -1,0 +1,12 @@
+# The mathematics needs nothing beyond the Python standard library:
+# kolakoski.py (the core module) and its tests are deliberately stdlib-only.
+# These packages are used ONLY by viz.py to render the figures, and pytest
+# only to run the test suite.
+#
+# Versions are pinned EXACTLY (review round 1, Okafor minor-4): the committed
+# PNGs embed the matplotlib version string, so byte-identical figure
+# reproduction is only promised in this pinned environment. Any reasonably
+# recent versions will work for everything except that byte-identity check.
+numpy==2.4.6
+matplotlib==3.11.1
+pytest==9.1.1

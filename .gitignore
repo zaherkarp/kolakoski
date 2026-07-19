@@ -1,0 +1,6 @@
+# Python build/cache artifacts only. Note what is deliberately NOT ignored:
+#   figures/  — rendered PNGs are committed so the writeup renders on GitHub
+#   out/      — pre-existing generated CSVs from the original doodle script
+__pycache__/
+*.pyc
+.pytest_cache/
