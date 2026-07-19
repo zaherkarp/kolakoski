@@ -1,12 +1,23 @@
 # PLAN — A Teaching Exercise on the Kolakoski Sequence
 
-**Version: 1** (draft for review) · **Status: awaiting round-1 review**
+**Version: 2** (revised after round-1 review) · **Status: awaiting round-2 review**
 
 This document is the blueprint for a small, self-contained lesson built around the
 Kolakoski sequence (OEIS [A000002](https://oeis.org/A000002)). It is a *living*
-document: it will be reviewed by two mathematician-programmer reviewers, revised in
+document: it is reviewed by two mathematician-programmer reviewers, revised in
 response, and frozen before implementation begins. The review history is part of the
-lesson — see [§9 Review process](#9-review-process) and Appendix A.
+lesson — see [§9 Review process](#9-review-process) and Appendix A, where every
+round-1 point is answered.
+
+> **What changed in v2 (summary).** Both reviewers refuted v1's §5B growth bound with
+> the same counterexample (L = 257) — it is now replaced by *provable* bounds derived
+> from the no-`111`/no-`222` facts, with the 3/2 ratio explicitly demoted to
+> "conjectural". The §5A loop invariant was corrected. Nilsson 2014 was read
+> first-hand and turns out to give a *two-sided, unconditional* density bound — it,
+> not Chvátal 1993, is now the headline bound (ledger upgraded, fig2 redesigned).
+> The Nilsson generator is promoted to must-have with a streaming benchmark
+> interface. The test-oracle suite was hardened against a vacuity Okafor
+> demonstrated. Full details: Appendix A.
 
 ---
 
@@ -23,8 +34,9 @@ and unafraid of a proof sketch. No background in combinatorics on words is assum
 
 **Why the Kolakoski sequence.** It is self-describing (the definition fits in a
 sentence), computable by a beginner (a dozen lines), and yet the most basic question
-about it — *do 1s and 2s each occupy half the sequence in the limit?* — has been open
-since the 1960s. Few objects offer this ratio of accessibility to depth.
+about it — *do 1s and 2s each occupy half the sequence in the limit?* (asked by
+Keane, per Chvátal's report) — has been open for decades. Few objects offer this
+ratio of accessibility to depth.
 
 ## 2. Learning objectives
 
@@ -34,19 +46,23 @@ A reader who works through the material should be able to:
    point, and constructively) and explain why the two definitions agree.
 2. Prove the two easiest structural facts: the sequence contains no `1,1,1` or
    `2,2,2`, and it is not eventually periodic.
-3. Implement a correct generator from memory, and explain the loop invariant that
+3. Implement a correct generator from memory, and state the loop invariant that
    makes it correct.
 4. State *precisely* what is open about the density of 1s (that even the existence of
-   the limiting density is unproven), and name the best known rigorous bounds.
-5. Explain why the naive generator needs O(n) memory and how a cleverer scheme gets
-   the same terms in O(log n) memory.
+   the limiting density is unproven), and name the best known rigorous bound —
+   Nilsson 2014's two-sided sup-bound — together with the older Chvátal bound and
+   the conditional Kupin–Rowland bound, distinguishing their logical strengths.
+5. Explain why the naive generator needs O(n) memory and how a chain-of-levels
+   scheme gets the same terms in far less memory (provably O(log n) levels).
 6. Read each figure and say what it does — and does not — demonstrate.
 
 ## 3. Mathematical background (with a claims ledger)
 
-**Definition (informal).** Write down a sequence of 1s and 2s, in runs (blocks of
-equal symbols) whose lengths are read off the sequence itself, starting `1, 2, 2, …`.
-The sequence *is* its own run-length description:
+**Definition (informal).** Write down a sequence of 1s and 2s in *maximal* runs
+(maximality matters: without it, run-length encoding is ill-defined — `1,2,2` also
+splits into blocks `(1)(2)(2)` with lengths `1,1,1`), letting the run lengths be
+read off the sequence itself, starting `1, 2, 2, …`. The sequence *is* its own
+run-length description:
 
 ```
 K   = 1 2 2 1 1 2 1 2 2 1 2 2 1 1 2 1 1 ...
@@ -54,28 +70,38 @@ runs: (1)(2 2)(1 1)(2)(1)(2 2)(1)(2 2)(1 1)...
 lens:  1  2    2   1  1  2    1  2    2   ...  = K again
 ```
 
-**Definition (precise).** Let `rle(w)` map a finite or infinite word over {1,2} to
-its sequence of run lengths. K is the unique infinite word over {1,2} that begins
-with 1 and satisfies `rle(K) = K`. (Starting with 2 instead gives the one other
-fixed point, `2,2,1,1,2,1,2,2,...` = A000002's sibling A078880.)
+**Definition (precise).** For an infinite word w ∈ {1,2}^ℕ that is not eventually
+constant, let `rle(w)` be its sequence of maximal-run lengths. (The domain condition
+is needed: an eventually-constant word has a last, infinite run, so `rle` produces
+no value in {1,2}^ℕ for it.) **K is the unique such w with w₁ = 1 and rle(w) = w.**
+The one other infinite fixed point starts with 2; it is
+[A078880](https://oeis.org/A078880), and it equals shift(K) — deleting K's first
+letter deletes exactly K's first run (that run has length K₁ = 1), so
+`rle(shift K) = shift(rle K) = shift(K)`. Among *finite* words, exactly the empty
+word ε and the word `1` are fixed by rle. These degenerate and sibling fixed points
+are stated up front so that "unique" is honest and Exercise T2 is provable as posed.
 
 **Claims ledger.** Every mathematical statement in the repo carries one of three
-labels, and the writeup will keep them straight:
+labels: **verified** = computed by code in this repo; **known** = cited to a source
+we checked (first-hand unless marked otherwise); **OPEN** = nobody knows. Exact
+rationals are carried alongside rounded decimals so rounding direction is checkable.
 
 | Claim | Status | Source / how we check |
 |---|---|---|
-| First 10,502 terms are `1,2,2,1,1,2,1,…` as tabulated by OEIS | **verified** | our generators vs. the OEIS b-file (all 10,502 terms matched at dev time, 2026-07-19) |
-| Runs have length 1 or 2; no `111`/`222` occurs | **proven** (easy) | writeup gives the one-line argument; tests check it to 10⁶ |
-| K is not eventually periodic | **proven** (easy) | writeup gives a proof via the run-length derivative; fig5 gives visual (non-)evidence |
-| K is cube-free; its square subwords have lengths in {2,4,6,18,54} | **known** | Carpi 1994, as summarized in OEIS A000002 comments |
-| Density of 1s exists and equals 1/2 | **OPEN** | OEIS: "It is an unsolved problem…" — the star of the show |
-| 0.49916 < (lim inf and lim sup of density) < 0.50084 | **known** | Chvátal, DIMACS TR 93-84 (1993); Wikipedia-verified digits, rounded outward |
-| Sharper bound ≈ ±0.000080 | **known (second-hand)** | Nilsson 2014 (Acta Phys. Pol. A 126) as summarized by Wikipedia; we could not read the PDF directly, so it is quoted as "reported" |
-| Kolakoski-(1,3) comes from a primitive substitution; its letter frequencies provably exist | **known** | Baake–Sing 2003 (abstract, arXiv:math/0206098) + standard Perron–Frobenius theory for primitive substitutions (Allouche–Shallit 2003) |
-| Density at n = 10⁶, 10⁷ (numbers to be measured) | **verified** | computed by our code; quoted with the n at which they were computed |
-
-The rule enforced throughout: **"verified" = computed by code in this repo; "known" =
-cited to a checked source; everything else is hedged or omitted.**
+| First 10,502 terms are as tabulated by OEIS | **verified** | our generators vs. the OEIS b-file (all 10,502 terms matched, 2026-07-19; re-runnable via `tools/crosscheck_oeis.py`) |
+| Runs have length 1 or 2; no `111`/`222` occurs | **proven** (easy) | one-line argument in writeup; tests check it to 10⁶ |
+| Prefix sums: L + ⌊L/3⌋ ≤ sum(K[:L]) ≤ 2L − ⌊L/3⌋ | **proven** | two-line proof from no-`111`/no-`222` (writeup §6, Exercise T5); verified for all L ≤ 10⁷ |
+| K is not eventually periodic | **proven** (with care) | full minimal-eventual-period proof in writeup §4 — v1's gapped sketch is preserved as Exercise T4's raw material |
+| K is cube-free; its square subwords have lengths in {2,4,6,18,54} | **known** | Carpi 1994 via OEIS A000002 comment; corroborated in-repo: square half-lengths found in first 20,000 terms are exactly {1,2,3,9,27}, no cubes |
+| Density of 1s exists and equals 1/2 | **OPEN** | Keane's question (per Chvátal's abstract); OEIS: "It is an unsolved problem…" |
+| Upper densities of 1s AND of 2s are each < 0.501 | **known** | Chvátal, DIMACS TR 93-84 (1993) — abstract fetched and quoted first-hand |
+| Finer Chvátal digits 0.500838 / 0.499162 | **known (second-hand)** | reported (e.g. Wikipedia) from the TR body; the TR's full text is behind a dead FTP link (attempted 2026-07-19), so these digits stay second-hand |
+| sup over n ≥ N of \|#1s(n)/n − 1/2\| ≤ 455920839/911696379 − 1/2 ≤ 0.000080 | **known** | Nilsson 2014, Acta Phys. Pol. A 126, 549–552 — PDF read first-hand; bound is two-sided and does **not** assume the frequency exists. Best known rigorous bound. |
+| \|freq₁(K) − 1/2\| ≤ 17/762 *assuming the limit exists*; semi-rigorous unconditional 1/46 | **known** | Kupin–Rowland, arXiv:0809.2776, abstract quoted first-hand — a hedging-discipline exhibit (conditional-rigorous vs unconditional-semi-rigorous) |
+| Kolakoski-(3,1) (alphabet {1,3}) relates to a **primitive substitution**; a fortiori its letter frequencies exist | **known** | Baake–Sing, "Kolakoski-(3,1) is a (deformed) model set", arXiv:math/0206098 (abstract, first-hand) + the standard theorem: primitive ⟹ uniquely ergodic ⟹ uniform letter frequencies (textbook cite pinned at writeup time) |
+| density(10⁶) = 0.499986; density(10⁷) = 0.5000046 (note the sign flip) | **verified** | computed in-repo; also independently by both reviewers |
+| Discrepancy D(n) = #1s − #2s = A088568(n): extremes +63/−66 for n ≤ 10⁶; +189 (n = 7,518,095) / −154 (n = 2,222,194) for n ≤ 10⁷ | **verified** | computed in-repo; identity D = A088568 is exact algebra (3n − 2·S(n) = #1 − #2) |
+| \|D(2⁶⁴)\| = 836,086,974 ≈ 0.19·√(2⁶⁴); growth "seems" ~√n | **known** | R. Brent's comment on A088568 / A289323 (fetched first-hand); explicitly *not* a theorem |
 
 ## 4. Deliverables
 
@@ -83,12 +109,13 @@ cited to a checked source; everything else is hedged or omitted.**
 PLAN.md                       this file (v1 → v2 → v3-frozen, with Appendix A)
 kolakoski.py                  core module, stdlib-only, heavily annotated
 viz.py                        renders figures/fig1..fig6 (numpy + matplotlib)
+tools/crosscheck_oeis.py      re-runnable OEIS b-file cross-check (network; stdlib)
 tests/test_kolakoski.py       pytest suite (stdlib + pytest only)
 figures/*.png                 six committed figures (see §7)
 docs/WRITEUP.md               the lesson (see §8)
 docs/reviews/round*-*.md      verbatim reviewer reports + author responses
 README.md                     tour, quickstart, gallery, learning path
-Makefile, requirements.txt, conftest.py, .gitignore   (already committed)
+Makefile, requirements.txt, conftest.py, .gitignore   (committed; requirements now pin exact versions)
 ```
 
 Constraint: the pre-existing `kolakoski_stars_blog_viz.py` and `out/` are historical
@@ -98,45 +125,65 @@ artifacts of this repo and stay byte-identical.
 
 All in `kolakoski.py`, stdlib-only. Every function gets: a docstring with a "Why this
 works" paragraph, a doctest, the loop invariant as a comment at the loop head, and an
-honest complexity note. A registry `METHODS: dict[str, callable]` maps method names to
-`f(n) -> list[int]` so tests and the benchmark iterate over all implementations; adding
-or demoting an algorithm is a one-line change.
+honest complexity note. Two registries drive tests and benchmarks:
+
+```python
+METHODS:        dict[str, Callable[[int], list[int]]]   # name -> f(n): first n terms
+STREAM_METHODS: dict[str, Callable[[], Iterator[int]]]  # name -> unbounded generator
+```
+
+plus a streaming consumer `stream_stats(it, n)` (running #1s, extremes of D, nothing
+retained) — the honest measurement harness for fig6's memory panel and the solution
+scaffold for Exercise C1.
 
 **A. `kolakoski_pointer(n)` — the classic self-reading tape.** Seed `[1,2,2]`; a read
 pointer `i` starts at index 2; the writer appends runs of the alternating symbol, run
 lengths dictated by `seq[i]`.
-*Invariant:* when the pointer is at `i`, every element of `seq[:i+1]` has already been
-used (or is being used) as a run length, and `seq` is exactly the concatenation of the
-runs those lengths describe. *Time O(n), memory O(n).*
+*Invariant (corrected in v2, machine-checked to 40 terms during review):* at every
+loop entry, `rld(seq[:i], 1) == seq` — the lengths consumed so far, decoded, rebuild
+exactly the tape written so far. The seed establishes it: `rld([1,2], 1) = [1,2,2]`.
+*Edge cases are part of the spec:* the function returns `seq[:n]` (truncating a
+possibly overshooting final run), and n ∈ {0,1,2,3} return the right prefixes of
+`[1,2,2]` without entering the loop. *Time O(n), memory O(n).*
 
 **B. `kolakoski_expand(n)` — iterate run-length decoding.** Define
-`rld(lengths, first)` = the word whose runs have the given lengths, symbols
+`rld(lengths, first)` = the word whose maximal runs have the given lengths, symbols
 alternating from `first`. Start from the seed word `[1,2]` and repeatedly apply
 `w ↦ rld(w, first=1)`.
-*Key lemma (writeup proves):* if `w` is a prefix of K then `rld(w, 1)` is again a
-prefix of K, of length `sum(w)` ≥ ⌈3·len(w)/2⌉ − 1; hence iterating from `[1,2]`
-converges to K, lengths growing geometrically (ratio → 3/2), so Θ(log n) rounds reach
-n terms. *Teaching trap to document:* the singleton word `[1]` is a spurious finite
-fixed point of `rld(·, 1)` — this is why the seed is `[1,2]` and why "K is the
-*unique* fixed point" needs its side conditions stated carefully.
+*Key lemma (structural part — proven in writeup §6):* if w is a prefix of K with
+len(w) = L, then `rld(w, 1)` is the concatenation of the first L maximal runs of K,
+hence again a prefix of K, of length sum(w).
+*Growth (provable):* L + ⌊L/3⌋ ≤ sum(w) ≤ 2L − ⌊L/3⌋, because among any 3
+consecutive symbols of K there is at least one 2 and at least one 1 (else `111` or
+`222`). So each round multiplies the length by a factor in [4/3 − o(1), 5/3 + o(1)],
+and Θ(log n) rounds reach n terms **with no unproven input**. Empirically the factor
+approaches 3/2 — but "the factor → 3/2" is *equivalent to the open density
+conjecture* (Exercise T5c), so the analysis never assumes it. Measured: 33 rounds to
+pass 10⁶, 39 to pass 10⁷.
+*Teaching trap to document:* the singleton word `[1]` is a spurious finite fixed
+point of `rld(·, 1)` — this is why the seed is `[1,2]`.
 *Time O(n) total, memory O(n).*
 
 **C. `kolakoski_gen()` — unbounded lazy generator.** Wraps A so callers can take
-terms one at a time (`itertools.islice`-friendly). Memory still O(n) — stated
-honestly; it exists to set up why D is interesting.
+terms one at a time. Memory still O(n) — stated honestly; it exists to set up why D
+is interesting.
 
-**D. `kolakoski_nilsson()` — O(log n)-memory unbounded generator.** A chain of
-levels: level 0 emits symbols of K; each level holds its current symbol and the
+**D. `kolakoski_nilsson()` — low-memory unbounded generator (must-have).** A chain
+of levels: level 0 emits symbols of K; each level holds its current symbol and the
 remaining budget of the current run, and pulls its next run length from the level
-above, levels created lazily. Depth after n terms is Θ(log n) (each level advances
-~2/3 as fast as the one below); total work is O(n) (geometric series). This is the
-idea behind Nilsson's space-efficient digit-distribution computation (J. Integer
-Seq. 15 (2012), #12.6.7: "logarithmic space … linear time").
-*Status: should-have.* If it turns out disproportionately fiddly, it is demoted to a
-guided exercise, and the registry/tests/benchmark adapt by deleting one line.
+above, levels created lazily. *Depth (provable):* each level consumes one symbol of
+its parent per emitted run, i.e. advances at a rate in [3/5, 3/4] symbols-per-symbol
+by the prefix-sum bounds (conjecturally ~2/3); either way the depth after n terms is
+Θ(log n) and total work is O(n). Review measurement: 39 levels after 10⁷ pulls;
+streaming memory ~9 KB vs ~17 MB for the O(n) list. This is the idea behind
+Nilsson's space-efficient computation (J. Integer Seq. 15 (2012), #12.6.7 —
+abstract, quoted verbatim: "logarithmic space and still runs in linear time").
+*Promoted from should-have to must-have in v2:* learning objective 5, fig6's memory
+panel, and Exercise C1 all depend on it — v1's "demote by deleting one line"
+contingency was refuted in review and is withdrawn.
 
-**E. Helpers.** `rle(word)` (run lengths), `rld(lengths, first)` (inverse), used by
-tests and the writeup's equivalence argument.
+**E. Helpers.** `rle(word)` (maximal-run lengths), `rld(lengths, first)` (inverse),
+used by tests and the writeup's equivalence argument.
 
 **CLI demo.** `python3 kolakoski.py 30` prints the terms, the bracketed run
 structure, and a live check that `rle(prefix)` is again a prefix — the module
@@ -144,79 +191,114 @@ demonstrates its own defining property when run.
 
 ## 6. Testing strategy
 
-Three genuinely independent oracles, so no test is checking the code against itself:
+Three oracle *families*, chosen so no test checks the code against itself (with the
+vacuity fix below):
 
 1. **External data:** first 300 terms hard-coded, copied at dev time from the OEIS
-   b-file (provenance comment with date; full 10,502-term cross-check already done
-   during planning and recorded in the test file comment).
-2. **Independent algorithms:** pointer vs. expand (vs. Nilsson) are derived from
+   b-file (provenance comment with date; the full 10,502-term cross-check is
+   re-runnable via `tools/crosscheck_oeis.py`, network required, stdlib only).
+   Review measurement: typical wrong variants (bad seed, bad pointer start, flipped
+   parity) first diverge at indices 2, 6, 3 — a 300-term oracle catches that bug
+   class with two orders of magnitude to spare.
+2. **Independent implementations:** pointer vs. expand (vs. Nilsson) derive from
    different characterizations; `test_methods_agree` compares them exhaustively for
-   n = 0..500 and spot-checks n = 10⁵ (all) and 10⁶ (pointer vs. expand).
-3. **Structural property:** `rle(K[:n])` must reproduce a prefix of K (dropping the
-   last, possibly truncated, run) — the defining fixed-point equation as a test.
+   n = 0..500 and at n = 10⁵ (all) and 10⁶ (pointer vs. expand).
+3. **Structural properties:** the fixed-point check `rle(K[:n])` is a prefix of K
+   (dropping the last, possibly truncated, run). **Vacuity fix (v2):** this oracle
+   is satisfied by `rle = identity`, so it is pinned by (a) hard-coded vectors such
+   as `rle([1,2,2,1,1]) == [1,2,2]` and `rld([1,2,2],1) == [1,2,2,1,1]`, and (b) a
+   length-shrink assertion `len(rle(K[:n])) < 0.72·n` for n = 10⁵ (identity cannot
+   pass; 0.72 clears the true ratio ≈ 2/3 with margin but stays below 1). Plus the
+   **proven prefix-sum bounds** L + ⌊L/3⌋ ≤ sum(K[:L]) ≤ 2L − ⌊L/3⌋ asserted for
+   all L ≤ 10⁶.
 
-Plus: edge cases n ∈ {0,1,2,3} for every method; alphabet ⊆ {1,2} and no `x,x,x`
-window over 10⁶ terms; `rld(rle(w), w[0]) == w` round-trips; a *loose* density sanity
-check |density(10⁶) − 1/2| < 0.002 explicitly commented as "a computation, not a
-theorem"; and a doctest runner so every docstring example is executed. Suite budget:
-under ~10 seconds.
+Plus: edge cases n ∈ {0,1,2,3} for every `METHODS` entry; alphabet ⊆ {1,2} and no
+`x,x,x` window over 10⁶ terms; `rld(rle(w), w[0]) == w` round-trips on hand-picked
+words *and* K-prefixes; a *loose* density sanity check |density(10⁶) − 1/2| < 0.002
+explicitly commented as "a computation, not a theorem"; and a doctest runner so
+every docstring example is executed. Suite budget: under ~10 seconds (review
+timings: pointer 10⁶ ≈ 0.14 s, expand 10⁶ ≈ 0.24 s — comfortable).
 
 ## 7. Visualization plan
 
 Rendered by `viz.py` into `figures/`, committed. Global rules: Agg backend, one
 shared style block, a colorblind-safe two-hue palette for the two symbols, dpi 150,
-≤ 400 KB per file. No randomness anywhere; figures 1–5 must be byte-identical across
-runs (enforced by `viz.py --verify`, which renders twice and compares SHA-256; fig6
-is timing-based and exempt). Never hand matplotlib 10⁶ raw points: fig2 samples
-~4,000 log-spaced indices; fig3 uses per-pixel min/max banding.
+≤ 400 KB per file. No randomness anywhere. **Determinism claim, scoped (v2):**
+figures 1–5 must be byte-identical across runs *in the pinned environment*
+(`requirements.txt` now pins exact versions; PNGs embed the matplotlib version
+string, so cross-version identity is not claimed). Enforced by `viz.py --verify`:
+render twice → compare SHA-256 → check sizes; `make verify` additionally fails if
+any committed PNG is older than `viz.py` (drift guard). fig6 is timing-based and
+exempt from the hash check.
+
+Data-side rules: never hand matplotlib 10⁶ raw points — fig2 samples ~4,000
+log-spaced indices; fig3 aggregates into a fixed number of data-side bins
+(independent of figure size); benchmarks time and measure memory in **separate
+passes** (review measurement: tracemalloc inflates runtime ~8.5×), and the memory
+pass consumes `STREAM_METHODS` streams via `stream_stats` so the instrument measures
+the algorithm, not the output list.
 
 | # | file | teaching point (one line) | design sketch |
 |---|---|---|---|
 | 1 | `fig1_self_description.png` | K reads out its own run lengths: `rle(K) = K`. | First ~30 terms as colored unit blocks; brackets group runs; the run lengths printed beneath visibly reproduce the sequence. No axes — a diagram, not a chart. |
-| 2 | `fig2_density.png` | The running density of 1s hugs 1/2, but neither convergence nor the limit is proven. | Density of 1s among first n terms, n up to 10⁷, log-x; dashed line at 1/2; shaded Chvátal band [0.49916, 0.50084]. |
-| 3 | `fig3_discrepancy_walk.png` | The +1/−1 walk (1↦+1, 2↦−1) stays astonishingly near 0 — nobody can prove it keeps doing so. | Partial sums D(n) to 10⁶ (this is OEIS A088568 up to sign convention); min/max band per pixel column; a ±√n guide curve labeled "visual reference only — NOT a theorem". |
+| 2 | `fig2_density.png` | The running density of 1s hugs 1/2; the best rigorous bounds are far tighter than the wiggle — yet the limit is unproven. | Main panel: density of 1s among first n terms, log-x to 10⁷; dashed line at 1/2; Chvátal's **first-hand** 0.499/0.501 lines, drawn and labeled as bounds on **limit points** (the curve legitimately exits them at small n — density(3) = 1/3 — and the caption says so). Inset zoom on the last decade with Nilsson's two-sided ±0.000080 lines (exact rational in caption). The story on ink: 0.501 → 0.000080, limit still open. |
+| 3 | `fig3_discrepancy_walk.png` | The +1/−1 walk (1↦+1, 2↦−1) = A088568 stays astonishingly near 0 — no theorem explains it. | D(n) to 10⁷, linear x, 1,250 data-side min/max bins (~8,000 points/bin). Dashed ±0.2·√n guides, c = 0.2 chosen to match Brent's reported \|D(2⁶⁴)\| ≈ 0.19·√(2⁶⁴); caption: "fair-coin-walk scale, small constant; no theorem either way" (adjudication of a genuine reviewer disagreement — Appendix A). Extremes annotated: +189 at n = 7,518,095; −154 at n = 2,222,194. |
 | 4 | `fig4_turtle.png` | The same bits drawn as geometry: turn left on 1, right on 2. | Unit-step turtle path, ~20,000 steps, colored by time (perceptually uniform colormap), equal aspect, axes off. Purely qualitative. |
 | 5 | `fig5_raster.png` | No wrap width makes the columns line up — what aperiodicity looks like (evidence, not proof). | Two panels: first 8,100 terms wrapped at width 90; first 8,010 wrapped at 89. Binary colormap, nearest-neighbor. |
-| 6 | `fig6_benchmark.png` | Three correct algorithms, three resource profiles. | Left: wall time vs n (log-log, best of 3) for every `METHODS` entry; right: peak memory (tracemalloc) vs n, where the O(n) vs O(log n) gap is the payoff. Caption states methodology and that timings vary by machine. |
+| 6 | `fig6_benchmark.png` | Three correct algorithms, three resource profiles. | n-grid 10³..10⁷ (×10). Left: wall time vs n (log-log), min of 3 runs with min–max whiskers, timing pass free of instrumentation. Right: tracemalloc peak vs n with `METHODS` consumed as lists vs `STREAM_METHODS` consumed via `stream_stats` — the O(n)-list vs O(log n)-stream separation (~17 MB vs ~9 KB at 10⁶) is the payoff. Caption states methodology, environment, and that timings vary by machine. |
 
 ## 8. Writeup outline (`docs/WRITEUP.md`)
 
 1. **Hook** — the sequence that describes itself; fig1.
-2. **Two definitions and why they agree** — `rle`/`rld` as an adjoint pair; the
-   forcing argument that pins down `1,2,2,1,1,…` symbol by symbol; the exactly-two-
-   fixed-points statement (start-with-1 vs start-with-2), each with proof or proof
-   sketch a strong undergraduate can complete.
-3. **A short history** — Oldenburger 1939 (Trans. AMS 46, 453–466) where the word
-   appears in symbolic dynamics; Kolakoski's 1965 Monthly problem 5304 (solution:
-   Üçoluk 1966) that gave it its name; OEIS's naming note.
-4. **Easy theorems** — no `111`/`222` (one line from the definition); non-periodicity:
-   if K were eventually periodic with period p, applying the run-length derivative
-   maps period sums → strictly shorter period (average run length > 1), contradicting
-   `rle(K) = K`. Spelled out with the boundary details — this proof is on the round-3
-   mandatory-check list precisely because "average run length > 1" needs care.
+2. **Two definitions and why they agree** — `w ↦ (w₁, rle(w))` and
+   `(s, ℓ) ↦ rld(ℓ, s)` as **mutually inverse bijections** (the "adjoint" wording of
+   v1 is withdrawn — rle is not even monotone for the prefix order: rle(12) = 11 and
+   rle(122) = 12 are prefix-incomparable); the forcing argument pinning down
+   `1,2,2,1,1,…`; the fixed-point inventory: ε and `1` (finite), K and
+   shift(K) = A078880 (infinite), with the one-line shift proof.
+3. **A short history** — Oldenburger 1939 (Trans. AMS 46, 453–466); Kolakoski's 1965
+   Monthly problem 5304 (solution: Üçoluk 1966); **Keane's density question** as
+   credited by Chvátal's abstract; OEIS's naming note.
+4. **Easy theorems, honest proofs** — no `111`/`222` (one line); the prefix-sum
+   bounds (two lines from it); non-periodicity in full: minimal *eventual* period p,
+   block aligned at a run boundary past the preperiod, a length-2 run exists in the
+   block (a (12)^∞ tail would force rle(K) = K to end 1^∞ ∋ 111), so the r runs in
+   the block satisfy r < p while rle(K) = K is eventually periodic with period r —
+   contradiction with minimality. v1's gapped sketch is quoted in Exercise T4.
 5. **The open problem** — what exactly is unknown (existence of the limit, and its
-   value); Chvátal's bounds and how such bounds are proven (finite automata /
-   exhaustive verification flavor, one paragraph); Nilsson's reported sharpening;
-   Kupin–Rowland's conditional bound (17/762, assuming existence); what our own
-   measurements at 10⁶–10⁷ show and why that is *evidence, not proof*.
-6. **Algorithms** — walkthroughs of A/B/D mirroring the code annotations: invariant,
-   correctness argument, complexity; the `[1]` trap; the decode-prefix lemma.
+   value); the bound history told with logical precision: Chvátal 1993 (< 0.501 both
+   letters, computer-assisted; method sketch), the reported finer digits
+   (second-hand), **Nilsson 2014's sup-bound ±0.000080 (two-sided, unconditional,
+   first-hand quote)**, and Kupin–Rowland's pair (rigorous-but-conditional 17/762 vs
+   semi-rigorous-unconditional 1/46) as a lesson in reading hedges; what our own
+   10⁶–10⁷ measurements show and why that is *evidence, not proof* (density sign
+   flip; Brent's √n-scale discrepancy data at 2⁶⁴).
+6. **Algorithms** — walkthroughs of A/B/D mirroring the code annotations: corrected
+   invariant, decode-prefix lemma with proof, provable growth window [4/3, 5/3] and
+   what 3/2 would cost (T5c), the `[1]` trap, level-depth argument for D.
 7. **Figure gallery** — each figure embedded with 2–3 sentences of commentary plus
    one "look for this" prompt.
 8. **Exercises** (graded ●○○ → ●●●) —
-   *Computational:* C1 reproduce the density at 10⁸ with O(log n) memory; C2 tabulate
-   gaps between sign changes of D(n); C3 add a third wrap width to fig5 and explain
-   what you see.
-   *Theoretical:* T1 write out the no-`111` proof; T2 prove the two-fixed-points
-   claim; T3 prove the decode-prefix lemma; T4 patch the stated gap in the
-   non-periodicity sketch.
-   *Extension:* X1 implement Kolakoski-(1,3), plot its running letter frequency next
-   to Kol(1,2)'s, and read Baake–Sing to explain the moral: *there* the frequency
-   provably exists — self-similarity buys what brute computation cannot.
+   *Computational:* C1 density at 10⁸ with the streaming generator (O(log n)
+   memory); C2 tabulate gaps between sign changes of D(n); C3 add a third wrap
+   width to fig5 and explain; **C4 (new, from review) "break the generator, then
+   catch it"** — three sabotaged variants (bad seed / bad pointer start / flipped
+   parity), predict which test catches each and at which index the output first
+   diverges (answers 2, 6, 3 — verified), then map each oracle's blind spots.
+   *Theoretical:* T1 write out the no-`111` proof; T2 the fixed-point inventory
+   (ε, 1, K, shift K); T3 prove the decode-prefix lemma; **T4 (repurposed) find and
+   repair the gaps in v1's non-periodicity sketch** (the sketch is quoted verbatim;
+   the review history is the teaching material); **T5 (new, from review) provable
+   prefix-sum bounds and what 3/2 would cost** — (a) the [L + ⌊L/3⌋, 2L − ⌊L/3⌋]
+   window from no-`111`/no-`222`; (b) Θ(log n) expand-rounds with no unproven
+   input; (c) "round factor → 3/2" ⟺ the open density conjecture.
+   *Extension:* X1 implement **Kolakoski-(3,1)** (alphabet {1,3} — named per the
+   actual Baake–Sing title), plot its running letter frequency next to Kol(1,2)'s,
+   and explain via the primitive-substitution theorem why *there* the frequency
+   provably exists; route further reading through Dekking 1997, with Baake–Sing as
+   "for the curious".
 9. **References** — numbered; each carries "verified against source, date" or an
-   explicit "second-hand via …" tag. OEIS A000002 (+ b-file, + A088568, + A078880),
-   Oldenburger 1939, Kolakoski 1965/Üçoluk 1966, Chvátal 1993, Nilsson 2012 & 2014,
-   Carpi 1994 (via OEIS), Baake–Sing 2003, Allouche–Shallit 2003, Dekking 1997.
+   explicit "second-hand via …" tag; exact rationals quoted where bounds are stated.
 
 ## 9. Review process
 
@@ -224,53 +306,53 @@ Two reviewer personas — **explicitly fictional, run as AI subagents**, disclos
 such in every review file — critique this plan and later the artifacts:
 
 - **Dr. Salomé Vidal** — combinatorics on words / symbolic dynamics. Lane:
-  definitions and their side conditions, proof-sketch rigor, citation accuracy,
-  hedging discipline, exercise solvability.
+  definitions and side conditions, proof rigor, citation accuracy, hedging
+  discipline, exercise solvability.
 - **Dr. Emeka Okafor** — computational mathematics / scientific software. Lane:
   invariants and edge cases, complexity claims, test-oracle independence, benchmark
   honesty, figure craft, whether comments teach *why* rather than narrate *what*.
 
-**Protocol.** Round 1: both review PLAN v1 → author responds point-by-point
-(ACCEPTED with the change / REJECTED with reasons / DEFERRED) in Appendix A → v2.
-Round 2: both review v2 → v3 declared **frozen**; implementation follows v3.
-Round 3 (post-implementation): Vidal reads the writeup + code comments + captions
-and must hand-trace a generator for n ≤ 15 and re-verify ≥ 2 quantitative claims by
-running the repo's code; Okafor reads code + tests + viz and must run the suite,
-audit one oracle for independence, and empirically probe one complexity claim.
-Findings → fixes → `docs/reviews/round3-responses.md`.
+**Protocol.** Round 1 (done): both reviewed v1 → point-by-point responses in
+Appendix A → this v2. Round 2: both review v2 → v3 declared **frozen**;
+implementation follows v3. Round 3 (post-implementation): Vidal reads the writeup +
+code comments + captions and must hand-trace a generator for n ≤ 15, re-verify ≥ 2
+quantitative claims by running the repo's code, **and re-derive the corrected §5B/§6
+prefix-sum bounds**; Okafor reads code + tests + viz and must run the suite, audit
+one oracle for independence, empirically probe one complexity claim, **and run
+`viz.py --verify` (the determinism/size/drift gate is his check)**. Findings →
+fixes → `docs/reviews/round3-responses.md`.
 
-**Anti-rubber-stamp rules.** Round-1 reviews must surface ≥ 2 major and ≥ 3 minor
-substantive issues; "looks good overall" is banned; every review must contain an
-*Independent verification performed* section where the reviewer picks ≥ 1 factual
-claim and confirms or refutes it with shown work. Symmetric safeguard: the author
-must independently re-verify any accepted correction before applying it (reviewers
-can be wrong too), and may reject suggestions with recorded reasons.
+**Anti-rubber-stamp rules.** Round-1 reviews required ≥ 2 major and ≥ 3 minor
+substantive issues (both reviewers exceeded this); round 2 relaxes to ≥ 1 major or
+≥ 2 minor *or* a justified sign-off enumerating residual risks. Every review must
+contain an *Independent verification performed* section with shown work. Symmetric
+safeguard: the author re-verifies every accepted correction before applying it
+(done for 100% of round-1 factual claims — see Appendix A) and may reject
+suggestions with recorded reasons.
 
 ## 10. Milestones (commit sequence)
 
-1. ~~Scaffolding~~ (done) → 2. this file (v1) → 3. round-1 reviews → 4. v2 +
-responses → 5. round-2 reviews → 6. v3 frozen → 7. `kolakoski.py` + tests (suite
-green before commit) → 8. `viz.py` + figures → 9. writeup + README → 10. round-3
-reviews → 11. fixes + responses → 12. push, open PR.
+1. ~~Scaffolding~~ → 2. ~~PLAN v1~~ → 3. ~~round-1 reviews (Okafor, Vidal)~~ →
+4. **this v2 + responses** → 5. round-2 reviews → 6. v3 frozen → 7. `kolakoski.py`
++ `tools/crosscheck_oeis.py` + tests (suite green before commit) → 8. `viz.py` +
+figures (+ Makefile drift guard) → 9. writeup + README → 10. round-3 reviews →
+11. fixes + responses → 12. push, open PR.
 
-## 11. Open questions for the reviewers (seeded, genuine)
+## 11. Questions for round-2 reviewers
 
-1. **Nilsson generator (§5D):** must-have or stretch? It is the only algorithm whose
-   correctness argument is nontrivial; is the pedagogical payoff (the O(log n)
-   memory curve in fig6) worth the page budget?
-2. **Non-periodicity sketch (§8.4):** is the "derivative shortens the period"
-   argument airtight as stated for *eventually* periodic words, or does it need the
-   preperiod handled explicitly? What is the cleanest version at this audience level?
-3. **Chvátal band in fig2:** the band is ±0.00084 while our curve will sit within
-   ~±0.0003 of 1/2 at visible scales — does the band mislead more than it informs?
-   Should Nilsson's reported ±0.00008 appear too, given it is second-hand?
-4. **fig3's ±√n guide:** it is *not* a theorem (and the truth may be much smaller —
-   A088568's plot suggests very slow growth). Keep with a loud disclaimer, or cut?
-5. **Exercise X1** (Kolakoski-(1,3)): right capstone, or too far afield? Is the
-   Perron–Frobenius "frequencies exist for primitive substitutions" chain
-   (Baake–Sing + Allouche–Shallit) stated at the right level of rigor?
-6. **Scope check:** anything listed above that should be cut to keep the lesson
-   readable in one sitting? Anything essential missing?
+The round-1 seeded questions are resolved (Appendix A). For round 2, focused checks:
+
+1. **fig2's redesign** (first-hand 0.499/0.501 lines + Nilsson inset): does the
+   inset overload the figure, and is the "bounds on limit points, curve may exit"
+   labeling clear enough for the audience?
+2. **T4's framing** ("find the gaps in v1's sketch, quoted verbatim"): honest and
+   pedagogically sound, or too self-referential?
+3. **§5's corrected specs**: any remaining imprecision that would let an
+   implementer write subtly wrong code while believing they followed the spec?
+4. **§6's vacuity fix**: is the 0.72 length-shrink threshold justified cleanly
+   enough (true ratio ≈ 2/3 by the prefix-sum bounds), or should the test assert
+   the two-sided window ⌊2L/5⌋ ≤ len(rle(K[:L])) ≤ ⌈3L/4⌉ instead?
+5. Anything in the v2 diff that regressed v1.
 
 ---
 
@@ -279,5 +361,58 @@ reviews → 11. fixes + responses → 12. push, open PR.
 | Version | Date | Summary |
 |---|---|---|
 | v1 | 2026-07-19 | Initial draft for round-1 review. |
+| v2 | 2026-07-19 | All round-1 points addressed: §5B bound replaced by provable window; §5A invariant corrected; Nilsson 2014 upgraded to first-hand two-sided headline bound; Nilsson generator promoted to must-have with streaming benchmark; test-oracle vacuity fixed; fig2/fig3/fig6 redesigned; definitions tightened (maximal runs, rle domain, fixed-point inventory); Baake–Sing renamed (3,1); Keane credited; exercises C4/T5 added, T4 repurposed. |
 
-*(Point-by-point response tables will be added here per round.)*
+**Re-verification policy (applied below).** Every reviewer claim marked ACCEPTED was
+independently re-verified by the author before being applied: computational claims
+were re-run from scratch (fresh scripts, not the reviewers' code), and source quotes
+were re-fetched. Where a reviewer's claim was *itself* imperfect, the response says
+so — reviews are evidence, not authority.
+
+### A.1 Responses to round-1 — Okafor (`docs/reviews/round1-okafor.md`)
+
+| # | Point | Decision | Response / re-verification |
+|---|---|---|---|
+| M1 | §5B bound false; first failure L = 257; replace with L + ⌊L/3⌋ | **ACCEPTED** | Re-verified: sum(K[:257]) = 384 < 385; 563,998 violations below 10⁶; replacement bound has **0 violations up to 10⁷** (beyond his 10⁶). §5B rewritten; round counts 33/39 confirmed and quoted. Both reviewers found the same counterexample independently — the strongest possible signal it is real. |
+| M2 | §5A invariant false at entry; edges/truncation unspecified | **ACCEPTED** | Re-verified the counterexample (`rld([1,2,2],1) = [1,2,2,1,1]`) and the corrected invariant (holds at every loop entry to 40 terms). Spec now states `rld(seq[:i],1) == seq`, the truncating return, and n ≤ 3 behavior. |
+| M3 | list-returning registry destroys fig6's memory story | **ACCEPTED** | `STREAM_METHODS` + `stream_stats` added (§5, §7); memory pass consumes streams. His 9.1 KB vs 8.5–16.8 MB measurements adopted as design targets, to be re-measured in-repo for the caption. |
+| M4 | structural oracle vacuous for `rle = identity` | **ACCEPTED** | Vacuity confirmed by inspection (identity fixes everything; K-prefixes are K-prefixes). §6 adds hard-coded vectors + length-shrink assertion; threshold 0.72 justified by the now-proven ≤ 3/4 ratio bound (round-2 Q4 asks reviewers to prefer the two-sided window if cleaner). |
+| m1 | never time under tracemalloc; report spread; state n-grid | **ACCEPTED** | Separate passes specified; min-of-3 with min–max whiskers; grid 10³..10⁷ stated. His 8.5× overhead measurement is quoted in §7 as the reason. |
+| m2 | Chvátal corridor misleads | **ACCEPTED** (merged with Vidal m6) | Lines instead of band, labeled as limit-point bounds; and the numbers on ink are now the first-hand 0.499/0.501, with finer digits demoted to caption/second-hand. |
+| m3 | fig3 bins must be data-side; pick x-scale | **ACCEPTED** | 1,250 fixed bins, linear x (his Q3 answered). |
+| m4 | pin versions; scope determinism per-environment | **ACCEPTED** | `requirements.txt` now pins `numpy==2.4.6`, `matplotlib==3.11.1`, `pytest==9.1.1`; §7 scopes the byte-identity claim; his two-process hash experiment noted. |
+| m5 | ledger labeled density "verified" before measuring | **ACCEPTED** | Now measured (0.499986 / 0.5000046) and re-verified by the author; his numbers matched. |
+| m6 | figure-drift gap between commits 8–9 | **ACCEPTED** | `make verify` gains a PNG-older-than-viz.py failure; round-3 assignment of `--verify` to Okafor recorded in §9. |
+| Q1 | Nilsson must-have; "delete one line" contingency false | **ACCEPTED** | Promoted; contingency withdrawn; C1/objective-5/fig6 dependency chain acknowledged in §5D. |
+| Q4 | cut the ±√n guide | **PARTIALLY REJECTED** | His flattening arithmetic is correct for c = 1 at n = 10⁶ (re-verified: max D = 63 vs 1000). But Vidal's counter-evidence (Brent: \|D(2⁶⁴)\| ≈ 0.19·√n; O(log n) "seems incorrect") was re-fetched and is decisive on the premise: √n *is* the empirically right order at scale. Adjudication: keep the guide at **c = 0.2** on a 10⁷-range plot (guide 632 vs walk 189 at the right edge — visible, not flattened), caption states c, its provenance, and "no theorem either way". |
+| add-1 | `stream_stats` helper | **ACCEPTED** | In §5E. |
+| add-2/3/4 | n-grid; exact pins; CI-style chain | **ACCEPTED** | §7, requirements, Makefile `verify`. |
+| C4 | mutation-testing exercise | **ACCEPTED** | Divergence indices 2/6/3 independently re-verified; added as C4. |
+| his Q2 | commit a re-runnable b-file checker? | **ACCEPTED** | `tools/crosscheck_oeis.py` (stdlib, network, standalone) added to deliverables; the 10,502 claim is now reproducible, not an anecdote. |
+
+### A.2 Responses to round-1 — Vidal (`docs/reviews/round1-vidal.md`)
+
+| # | Point | Decision | Response / re-verification |
+|---|---|---|---|
+| M1 | §5B false (same counterexample); provable window [4/3, 5/3]; hedge §5D's 2/3 | **ACCEPTED** | Same re-verification as Okafor M1; her upper bound 2L − ⌊L/3⌋ additionally verified to 10⁷ with 0 violations. Her cautious `⌊(L−2)/3⌋` variant was unnecessary — the stronger ⌊L/3⌋ holds and is what the disjoint-triples proof yields; adopted with proof. §5D now carries the provable [3/5, 3/4] window. Her D-walk extremes to 10⁷ (+189 @ 7,518,095 / −154 @ 2,222,194) re-verified exactly and added to the ledger. |
+| M2 | Nilsson 2014 is readable, rigorous, unconditional; upgrade and verify the lower side | **ACCEPTED** | The author obtained and read the PDF (the v1 "could not read" note reflected a broken local toolchain, since fixed — her "one download away" verdict was right). First-hand quote now in the ledger. **Her own Q2 is answered affirmatively by the source:** the paper's bound is `sup_{n≥N} |o_n/n − 1/2| ≤ 455920839/911696379 − 1/2 ≤ 0.000080` — two-sided by construction, no separate lower table needed. Objective 4 and §8.5 now name Nilsson as the headline bound. |
+| M3 | non-periodicity: ledger inconsistency + real gaps; full proof supplied | **ACCEPTED** | Ledger relabeled "proven (with care)"; her minimal-eventual-period proof adopted as writeup §4 main text (gaps (i)–(iii) each addressed); T4 repurposed as gap-hunting on v1's sketch, per her recommendation. |
+| m1 | "maximal" blocks | **ACCEPTED** | Fixed in §3 with her (1)(2)(2) counterexample retained as the explanation. |
+| m2 | rle domain condition; surface ε and `1` | **ACCEPTED** | Her proposed wording adopted nearly verbatim in §3. |
+| m3 | "adjoint pair" wrong | **ACCEPTED** | Re-verified her example (rle(12) = 11, rle(122) = 12, prefix-incomparable). §8.2 now says mutually inverse bijections with the first symbol carried along. |
+| m4 | Kupin–Rowland missing from ledger; arXiv:0809.2776 | **ACCEPTED** | Abstract re-fetched first-hand; exact conditionality language confirmed and quoted; ledger row added. (The author's private notes had the wrong arXiv ID 0809.2777; her ID is the correct one — fixed.) |
+| m5 | Baake–Sing title is "(3,1)"; name a frequency theorem | **ACCEPTED** | Title re-verified from the arXiv listing; X1 renamed Kolakoski-(3,1); "primitive ⟹ uniquely ergodic ⟹ frequencies exist" stated, textbook cite to be pinned at writeup time (round 3 checks it). |
+| m6 | Chvátal provenance (only 0.50084 is on Wikipedia; abstract says 0.501) + band semantics | **ACCEPTED** | The author fetched the TR abstract first-hand (0.501 both letters; Keane credited) and attempted the TR body — the FTP link is dead (timeout, 2026-07-19, documented). Finer digits stay second-hand in the ledger; fig2 redesigned to put only first-hand numbers on ink. |
+| add-1..4 | KR row; shift(K) proposition; Keane credit; D = A088568 exactly + bound test | **ACCEPTED** | shift(K) = A078880 re-verified against all 10,000 b-file terms; the algebra D(n) = 3n − 2S(n) re-derived; structural bound test to 10⁶ added to §6; Keane credited in §1/§8.3. |
+| T5 | provable-bounds exercise with the 3/2 ⟺ conjecture punchline | **ACCEPTED** | Added; her solution sketch checks out (the (b) recurrence follows from the lower bound). |
+| her Q1 | was the v1 bound intended for iteration lengths only? | **ANSWERED** | No proof was in hand; the v1 bound was simply wrong (it encoded D ≤ 2, refuted at 257). The 4/3 analysis is adopted; nothing is claimed for the iteration subsequence beyond it. |
+| her Q3 | exact rationals in the ledger | **ACCEPTED** | Ledger and §8.9 carry them. |
+| her Q4 | who reads the TR body before v3? | **ANSWERED** | The author attempted it (dead FTP, documented in the ledger row); the digits remain second-hand and are presented as such; Nilsson's first-hand bound carries the headline, so no claim depends on the TR body. |
+| her Q5 | is the JIS quote verbatim? | **ANSWERED/VERIFIED** | Yes — the JIS abstract page was fetched during planning; "uses logarithmic space and still runs in linear time" is verbatim (ellipsized in §5D as "logarithmic space … linear time"). |
+| fig3 stance (vs Okafor Q4) | keep guide, fix premise, cite Brent | **ACCEPTED (adjudicated)** | Brent's A088568/A289323 comments re-fetched first-hand; her premise correction stands; c = 0.2 design adopted as above. |
+
+**Process note.** The two reviewers, working in parallel without seeing each other's
+reports, refuted the same v1 lemma with the same first counterexample (L = 257) via
+different routes (Okafor: direct scan; Vidal: the D ≤ 2 equivalence) — and disagreed
+productively about fig3, which the author resolved with a third, re-fetched source.
+This is the review system working as designed, and it is left visible on purpose.
